@@ -3,10 +3,13 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <elapsedMillis.h>
+#include <PubSubClient.h>
+
 enum wifiMode {AP, NORMAL};
 
-char ssid[50]; // = "BOXLERNETx"; 
-char passwd[50]; // = "honeybear";
+#define MQTT_SERVER "192.168.0.100"
+char ssid[50];
+char passwd[50];
 
 int currentWifiMode = NORMAL;
 
