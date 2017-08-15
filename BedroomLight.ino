@@ -30,6 +30,41 @@ PubSubClient client(MQTT_SERVER, 1883, callback, wifiClient);
 
 int colorMode = MOOD;
 
+int currentColor[3] = { 0,0,0 };
+int targetColor[3] = { 0,0,0 };
+
+void setColor(int r, int g, int b) {
+  targetColor[0] = r;
+  targetColor[1] = g;
+  targetColor[2] = b;
+}
+
+void forceColor(int r, int g, int b) {
+  setColor(r, g, b);
+  currentColor[0] = r;
+  currentColor[1] = g;
+  currentColor[2] = b;
+  for (int i = 0; i <= ledLength; i++) {
+    pixels.setPixelColor(i, currentColor[0], currentColor[1], currentColor[2]);
+  };
+  pixels.show();
+
+}
+
+void updateColor() {
+  if (targetColor[0] > currentColor[0]) { currentColor[0]++; }; // become redder
+  if (targetColor[0] < currentColor[0]) { currentColor[0]--; }; // less red
+  if (targetColor[1] > currentColor[1]) { currentColor[1]++; }; // more green
+  if (targetColor[1] < currentColor[1]) { currentColor[1]--; }; // less green
+  if (targetColor[2] > currentColor[2]) { currentColor[2]++; }; // more blue
+  if (targetColor[2] < currentColor[2]) { currentColor[2]--; }; // less blue
+
+  for (int i = 0; i <= ledLength; i++) {
+    pixels.setPixelColor(i, currentColor[0], currentColor[1], currentColor[2]);
+  };
+  pixels.show();
+}
+
 void setup() {
 
   pixels.begin();
@@ -209,28 +244,36 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void moodLight() {
-  for(int j=0; j <= 255; j++) {
-    for(int i=0; i < ledLength; i++){
-     pixels.setPixelColor(i,j,0,255-j);
-     delay(10);
-    };
+
+  if (targetColor[0] != 255 && targetColor[1] != 255 && targetColor[2] != 255) {
+    targetColor[0] = 255;
   };
-  //delay(500);
-  for(int j=0; j <= 255; j++) {
-    for(int i=0; i < ledLength; i++){
-      pixels.setPixelColor(i, 255 - j, j, 0);
-      pixels.show();
-      delay(10);
-    };
-  };
-  //delay(500);
-  for(int j=0; j <= 255; j++) {
-    for(int i=0; i < ledLength; i++){
-		  pixels.setPixelColor(i,0,255-j,j);
-		  pixels.show();
-      delay(10);
-    };
-  };
+  if (currentColor[0] == 255) { setColor(0, 255, 0); };
+  if (currentColor[1] == 255) { setColor(0, 0, 255); };
+  if (currentColor[2] == 255) { setColor(255, 0, 0); };
+
+  //for(int j=0; j <= 255; j++) {
+  //  for(int i=0; i < ledLength; i++){
+  //   pixels.setPixelColor(i,j,0,255-j);
+  //   delay(10);
+  //  };
+  //};
+  ////delay(500);
+  //for(int j=0; j <= 255; j++) {
+  //  for(int i=0; i < ledLength; i++){
+  //    pixels.setPixelColor(i, 255 - j, j, 0);
+  //    pixels.show();
+  //    delay(10);
+  //  };
+  //};
+  ////delay(500);
+  //for(int j=0; j <= 255; j++) {
+  //  for(int i=0; i < ledLength; i++){
+		//  pixels.setPixelColor(i,0,255-j,j);
+		//  pixels.show();
+  //    delay(10);
+  //  };
+  //};
   //delay(500);
 }
 
@@ -250,9 +293,9 @@ void loop() {
 
   switch (colorMode) {
   case MOOD:
-    pixels.setPixelColor(0, 250, 0, 250);
-    pixels.show();
-	  //moodLight();
+   // pixels.setPixelColor(0, 250, 0, 250);
+   // pixels.show();
+	  moodLight();
 	  break;
   case STROBE:
 	  //strobeLight();
@@ -263,8 +306,12 @@ void loop() {
   case SOLID:
 	  break;
   default:
+    setColor(0, 0, 0);
 	  lightsOut();
   };
+
+  updateColor();
+  delay(20);
 }
 
 void connectWifi(){
