@@ -6,7 +6,7 @@
 #include <PubSubClient.h>
 
 enum wifiMode {AP, NORMAL};
-enum mode { MOOD, STROBE, SOLID, POLICE, OFF };
+enum mode { MOOD, STROBE, SOLID, POLICE, WHORE, OFF };
 
 #define MQTT_SERVER "192.168.0.100"
 char ssid[50];
@@ -14,11 +14,15 @@ char passwd[50];
 
 int currentWifiMode = NORMAL;
 
+bool mainLight = false;
+bool switchStatus;
+bool previousSwitchStatus = false;
+
 elapsedMillis timer;
 
 ESP8266WebServer server(80);
 
-int ledLength = 2;
+int ledLength = 3;
 int ledPin = 14;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(ledLength, ledPin);
 
@@ -69,6 +73,8 @@ void setup() {
 
   pixels.begin();
   pinMode(16,OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(2, INPUT_PULLUP);
   
   EEPROM.begin(512);
   Serial.begin(115200);
@@ -196,20 +202,38 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.print("Payload: ");
 	Serial.println((char*)payload);
 
-	//if (topicstr == "bedroom/strobelight") {
-	//	//turn the light on if the payload is '1' and publish to the mqtt server a confirmation message
-	//	if (char(payload[0]) == '1') {
-	//		colormode = strobe;
-	//		client.publish("/test/confirm", "light on");
-	//	}
+	if (topicStr == "bedroom/strobelight") {
+		//turn the light on if the payload is '1' and publish to the mqtt server a confirmation message
+		if (char(payload[0]) == '1') {
+			colorMode = STROBE;
+			client.publish("/test/confirm", "light on");
+		}
 
-	//	//turn the light off if the payload is '0' and publish to the mqtt server a confirmation message
-	//	else if (char(payload[0]) == '0') {
-	//		colormode = off;
-	//		lightsout();
-	//		client.publish("/test/confirm", "light off");
-	//	}
-	//}
+		//turn the light off if the payload is '0' and publish to the mqtt server a confirmation message
+		else if (char(payload[0]) == '0') {
+			colorMode = OFF;
+			//lightsout();
+			client.publish("/test/confirm", "light off");
+		}
+	}
+
+  if (topicStr == "bedroom/mainLight") {
+    if (char(payload[0]) == 1) {
+      mainLight == true;
+    }
+    else {
+      mainLight == false;
+    }
+  }
+
+  if (topicStr == "bedroom/whoreLight") {
+    if (char(payload[0]) == 1) {
+      colorMode = WHORE;
+    }
+    else {
+      colorMode = OFF;
+    }
+  }
 
 	//if (topicstr == "bedroom/policelight") {
 	//	//turn the light on if the payload is '1' and publish to the mqtt server a confirmation message
@@ -241,6 +265,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 		}
 	}
 
+}
+
+void whoreLight() {
+  setColor(255, 0, 0);
 }
 
 void moodLight() {
@@ -277,6 +305,13 @@ void moodLight() {
   //delay(500);
 }
 
+void strobeLight() {
+  forceColor(255, 255, 255);
+  delay(40);
+  forceColor(0, 0, 0);
+  delay(20);
+}
+
 void loop() {
   connectWifi();
   client.loop();
@@ -290,6 +325,17 @@ void loop() {
     delay(200);
   }
 
+  if (switchStatus != previousSwitchStatus) {
+    mainLight = !mainLight
+  };
+
+  if (mainLight) {
+    digitalWrite(12, HIGH);
+  }
+  else {
+    digitalWrite(12, LOW);
+  }
+
 
   switch (colorMode) {
   case MOOD:
@@ -298,16 +344,19 @@ void loop() {
 	  moodLight();
 	  break;
   case STROBE:
-	  //strobeLight();
+	  strobeLight();
 	  break;
   case POLICE:
 	  //policeLight();
 	  break;
   case SOLID:
 	  break;
+  case WHORE:
+    whoreLight();
+    break;
   default:
     setColor(0, 0, 0);
-	  lightsOut();
+	  //lightsOut();
   };
 
   updateColor();
