@@ -22,7 +22,7 @@ elapsedMillis timer;
 
 ESP8266WebServer server(80);
 
-int ledLength = 3;
+int ledLength = 10;
 int ledPin = 14;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(ledLength, ledPin);
 
@@ -95,6 +95,9 @@ void readFromEEPROM() {
   int eepromCounter = 0;
   int ssidLength = EEPROM.read(eepromCounter);
   delay(500);
+  if (ssidLength > 50) {
+    return;
+  }
   eepromCounter++;
   String ssidFromMem;
   for(int i=0;i<ssidLength;i++){
@@ -115,6 +118,7 @@ void readFromEEPROM() {
   Serial.println((char*)ssid); 
   Serial.println((char*)passwd);
   delay(500);
+  Serial.println("end read eeprom");
 }
 
 void setupServer() {
@@ -218,12 +222,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	}
 
   if (topicStr == "bedroom/mainLight") {
-    if (char(payload[0]) == 1) {
-      mainLight == true;
-    }
-    else {
-      mainLight == false;
-    }
+    mainLight = !mainLight;
   }
 
   if (topicStr == "bedroom/whoreLight") {
@@ -325,15 +324,22 @@ void loop() {
     delay(200);
   }
 
-  if (switchStatus != previousSwitchStatus) {
-    mainLight = !mainLight
-  };
-
-  if (mainLight) {
-    digitalWrite(12, HIGH);
+  if (digitalRead(2) == HIGH) {
+    switchStatus = 1;
   }
   else {
-    digitalWrite(12, LOW);
+    switchStatus = 0;
+  }
+
+  if (switchStatus != previousSwitchStatus) {
+    mainLight = !mainLight;
+  }
+
+  if (mainLight) {
+    digitalWrite(16, HIGH);
+  }
+  else {
+    digitalWrite(16, LOW);
   }
 
 
@@ -361,21 +367,26 @@ void loop() {
 
   updateColor();
   delay(20);
+  previousSwitchStatus = switchStatus;
 }
 
 void connectWifi(){
   
-  timer = 0;
-  while (WiFi.status() != WL_CONNECTED && timer < 10000) {
+  if (WiFi.status() != WL_CONNECTED && currentWifiMode == NORMAL) {
     Serial.print("Connecting to ");
     Serial.println((char*)ssid);
     WiFi.begin(ssid, passwd);
-    pixels.setPixelColor(0,255,0,0);
+    pixels.setPixelColor(0, 255, 0, 0);
     pixels.show();
+  }
+
+  timer = 0;
+  while (WiFi.status() != WL_CONNECTED && timer < 10000 && currentWifiMode == NORMAL) {
     delay(500);
     Serial.print(".");
   }
-  if (WiFi.status() != WL_CONNECTED) {
+
+  if (WiFi.status() != WL_CONNECTED && currentWifiMode == NORMAL) {
     WiFi.disconnect();
     setupAP();
 	return;
