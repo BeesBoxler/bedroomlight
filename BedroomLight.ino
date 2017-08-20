@@ -6,7 +6,7 @@
 #include <PubSubClient.h>
 
 enum wifiMode {AP, NORMAL};
-enum mode { MOOD, STROBE, SOLID, POLICE, WHORE, OFF };
+enum mode { MOOD, STROBE, SOLID, POLICE, WHORE, BLUE, DIM, OFF };
 
 #define MQTT_SERVER "192.168.0.100"
 char ssid[50];
@@ -21,6 +21,9 @@ bool previousSwitchStatus = false;
 elapsedMillis timer;
 
 ESP8266WebServer server(80);
+
+int relayPin = 16;
+int switchPin = 5;
 
 int ledLength = 10;
 int ledPin = 14;
@@ -72,9 +75,8 @@ void updateColor() {
 void setup() {
 
   pixels.begin();
-  pinMode(16,OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(2, INPUT_PULLUP);
+  pinMode(relayPin, OUTPUT);
+  pinMode(switchPin, INPUT_PULLUP);
   
   EEPROM.begin(512);
   Serial.begin(115200);
@@ -180,7 +182,6 @@ void setupServer() {
     
     server.send(200, "text/html", "<h1>Thank you, restarting...</h1>");
     delay(1000);
-//    resetDevice();
     ESP.restart();
   });
   server.begin();
@@ -207,26 +208,25 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.println((char*)payload);
 
 	if (topicStr == "bedroom/strobelight") {
-		//turn the light on if the payload is '1' and publish to the mqtt server a confirmation message
 		if (char(payload[0]) == '1') {
 			colorMode = STROBE;
-			client.publish("/test/confirm", "light on");
-		}
-
-		//turn the light off if the payload is '0' and publish to the mqtt server a confirmation message
-		else if (char(payload[0]) == '0') {
+    }
+		else{
 			colorMode = OFF;
-			//lightsout();
-			client.publish("/test/confirm", "light off");
 		}
 	}
 
   if (topicStr == "bedroom/mainLight") {
-    mainLight = !mainLight;
+    if (char(payload[0]) == '1') {
+      mainLight = 1;
+    }
+    else {
+      mainLight = 0;
+    }
   }
 
   if (topicStr == "bedroom/whoreLight") {
-    if (char(payload[0]) == 1) {
+    if (char(payload[0]) == '1') {
       colorMode = WHORE;
     }
     else {
@@ -234,33 +234,41 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
   }
 
-	//if (topicstr == "bedroom/policelight") {
-	//	//turn the light on if the payload is '1' and publish to the mqtt server a confirmation message
-	//	if (char(payload[0]) == '1') {
-	//		colormode = police;
-	//		client.publish("/test/confirm", "light on");
-	//	}
+  if (topicStr == "bedroom/blueLight") {
+    if (char(payload[0]) == '1') {
+      colorMode = BLUE;
+    }
+    else {
+      colorMode = OFF;
+    }
+  }
 
-	//	//turn the light off if the payload is '0' and publish to the mqtt server a confirmation message
-	//	else if (char(payload[0]) == '0') {
-	//		colormode = off;
-	//		lightsout();
-	//		client.publish("/test/confirm", "light off");
-	//	}
-	//}
+  if (topicStr == "bedroom/dimLight") {
+    if (char(payload[0]) == '1') {
+      colorMode = DIM;
+    }
+    else {
+      colorMode = OFF;
+    }
+  }
+
+	if (topicStr == "bedroom/policelight") {
+		if (char(payload[0]) == '1') {
+      colorMode = POLICE;
+		}
+		else{
+      colorMode = OFF;
+		}
+	}
 
 	if (topicStr == "bedroom/moodlight") {
-		//turn the light on if the payload is '1' and publish to the MQTT server a confirmation message
 		if (char(payload[0]) == '1') {
 			colorMode = MOOD;
-			client.publish("/test/confirm", "Light On");
 		}
 
-		//turn the light off if the payload is '0' and publish to the MQTT server a confirmation message
 		else if (char(payload[0]) == '0') {
 			colorMode = OFF;
 			lightsOut();
-			client.publish("/test/confirm", "Light Off");
 		}
 	}
 
@@ -270,38 +278,21 @@ void whoreLight() {
   setColor(255, 0, 0);
 }
 
-void moodLight() {
+void blueLight() {
+  setColor(0, 0, 255);
+}
 
+void dimLight() {
+  setColor(100, 100, 100);
+}
+
+void moodLight() {
   if (targetColor[0] != 255 && targetColor[1] != 255 && targetColor[2] != 255) {
     targetColor[0] = 255;
   };
   if (currentColor[0] == 255) { setColor(0, 255, 0); };
   if (currentColor[1] == 255) { setColor(0, 0, 255); };
   if (currentColor[2] == 255) { setColor(255, 0, 0); };
-
-  //for(int j=0; j <= 255; j++) {
-  //  for(int i=0; i < ledLength; i++){
-  //   pixels.setPixelColor(i,j,0,255-j);
-  //   delay(10);
-  //  };
-  //};
-  ////delay(500);
-  //for(int j=0; j <= 255; j++) {
-  //  for(int i=0; i < ledLength; i++){
-  //    pixels.setPixelColor(i, 255 - j, j, 0);
-  //    pixels.show();
-  //    delay(10);
-  //  };
-  //};
-  ////delay(500);
-  //for(int j=0; j <= 255; j++) {
-  //  for(int i=0; i < ledLength; i++){
-		//  pixels.setPixelColor(i,0,255-j,j);
-		//  pixels.show();
-  //    delay(10);
-  //  };
-  //};
-  //delay(500);
 }
 
 void strobeLight() {
@@ -324,7 +315,7 @@ void loop() {
     delay(200);
   }
 
-  if (digitalRead(2) == HIGH) {
+  if (digitalRead(switchPin) == HIGH) {
     switchStatus = 1;
   }
   else {
@@ -336,17 +327,15 @@ void loop() {
   }
 
   if (mainLight) {
-    digitalWrite(16, HIGH);
+    digitalWrite(relayPin, HIGH);
   }
   else {
-    digitalWrite(16, LOW);
+    digitalWrite(relayPin, LOW);
   }
 
 
   switch (colorMode) {
   case MOOD:
-   // pixels.setPixelColor(0, 250, 0, 250);
-   // pixels.show();
 	  moodLight();
 	  break;
   case STROBE:
@@ -360,9 +349,14 @@ void loop() {
   case WHORE:
     whoreLight();
     break;
+  case BLUE:
+    blueLight();
+    break;
+  case DIM:
+    dimLight();
+    break;
   default:
     setColor(0, 0, 0);
-	  //lightsOut();
   };
 
   updateColor();
