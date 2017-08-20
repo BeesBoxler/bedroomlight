@@ -6,7 +6,7 @@
 #include <PubSubClient.h>
 
 enum wifiMode {AP, NORMAL};
-enum mode { MOOD, STROBE, SOLID, POLICE, WHORE, BLUE, DIM, OFF };
+enum mode { MOOD, STROBE, MAINSTROBE, SOLID, POLICE, WHORE, BLUE, DIM, OFF };
 
 #define MQTT_SERVER "192.168.0.100"
 char ssid[50];
@@ -216,6 +216,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
 		}
 	}
 
+  if (topicStr == "bedroom/mainStrobeLight") {
+    if (char(payload[0]) == '1') {
+      colorMode = MAINSTROBE;
+    }
+    else {
+      colorMode = OFF;
+    }
+  }
+
   if (topicStr == "bedroom/mainLight") {
     if (char(payload[0]) == '1') {
       mainLight = 1;
@@ -301,6 +310,13 @@ void strobeLight() {
   delay(20);
 }
 
+void mainStrobeLight() {
+  digitalWrite(relayPin, HIGH);
+  delay(40);
+  digitalWrite(relayPin, LOW);
+  delay(20);
+}
+
 void loop() {
   connectWifi();
   client.loop();
@@ -354,6 +370,8 @@ void loop() {
   case DIM:
     dimLight();
     break;
+  case MAINSTROBE:
+    mainStrobeLight();
   default:
     setColor(0, 0, 0);
   };
