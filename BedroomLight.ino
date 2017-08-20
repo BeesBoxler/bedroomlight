@@ -265,10 +265,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 		if (char(payload[0]) == '1') {
 			colorMode = MOOD;
 		}
-
-		else if (char(payload[0]) == '0') {
+		else{
 			colorMode = OFF;
-			lightsOut();
 		}
 	}
 
@@ -293,6 +291,7 @@ void moodLight() {
   if (currentColor[0] == 255) { setColor(0, 255, 0); };
   if (currentColor[1] == 255) { setColor(0, 0, 255); };
   if (currentColor[2] == 255) { setColor(255, 0, 0); };
+  delay(20);
 }
 
 void strobeLight() {
